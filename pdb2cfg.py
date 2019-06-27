@@ -81,6 +81,9 @@ def get_box_params(crystal):
 	return box_params
 
 def change_tag(n, i, sizes):
+	"""
+	Returns the tag for a certain atom, as it is in the n.xyz file
+	"""
 	with open(str(n) + ".xyz") as f:
 		lines = f.read().splitlines()
 		true_i = i % sizes
@@ -95,34 +98,33 @@ def get_atoms(lines, sizes, molecules):
 	"""
 	atoms = {}
 	n = 1
-	current_size = sizes[n] #1 is 137 
-	current_molecules = molecules[n] #everyone is 40
+	current_s = sizes[n] * molecules[n] 
 
 	for i in range(0, len(lines)):
+
+		if current_s <= 0:
+			n = n + 1
+			if not n in atoms:
+				break
+			current_s = sizes[n] * molecules[n]
+
 		l_sep = lines[i].split()
 		atom_id = l_sep[1]
 		x = float(l_sep[5])
 		y = float(l_sep[6])
 		z = float(l_sep[7])
-
+		
 		atom_tag = change_tag(n, i, sizes[n])
 		atoms[int(atom_id)] = {"x": x, "y": y, "z": z, "tag": atom_tag}
-
-		current_size = current_size - 1
-		if current_size < 0:
-			current_molecules = current_molecules - 1
-			current_size = sizes[n]
-
-		if current_molecules < 0:
-			n = n + 1
-			if not n in atoms:
-				break
-			current_size = sizes[n]  
-			current_molecules = molecules[n]
+		current_s = current_s - 1
 
 	return atoms
 
 def write_config(box_params, atoms):
+	"""
+	Creates / overwrites a CONFIG file in the same folder with the expected content. 
+	It respects the given format.
+	"""
 	f = open("CONFIG", "w")
 	f.write(" PBD\n")
 	f.write("         0         3\n")
@@ -152,8 +154,8 @@ def main():
 
 		#Clean input
 		lines = f.read().splitlines()
-		input_lines = remove_lines(lines, "ANISOU")
-		input_lines = remove_lines(input_lines, "CONECT")
+		aux_lines = remove_lines(lines, "ANISOU")
+		input_lines = remove_lines(aux_lines, "CONECT")
 
 		#Number of molecules in each species, stored in dictionary. 
 		start = 5
@@ -169,6 +171,7 @@ def main():
 		len_aux = len(input_lines) - 2
 		atoms = get_atoms(input_lines[5:len_aux], species_size, species_molecs)
 		
+		#Writes the CONFIG file
 		write_config(box_params, atoms)
 
 		print("Success: CONFIG file completed.") 
