@@ -76,17 +76,61 @@ def get_box_params(crystal):
 	cb =( c / math.sin(gamma) ) * ( math.cos(alpha) - math.cos(beta) * math.cos(gamma) )
 	cc =( c / math.sin(gamma) ) * math.sqrt( 1 - math.cos(alpha)**2 - math.cos(beta)**2 - math.cos(gamma)**2 + 2 * math.cos(alpha)* math.cos(beta) * math.cos(gamma) )
 
-	box_params = "{:20.10f}{:20.10f}{:20.10f}\n{:20.10f}{:20.10f}{:20.10f}\n{:20.10f}{:20.10f}{:20.10f}".format(a, 0, 0, ba, bb, 0, ca, cb, cc)
+	box_params = "{:20.10f}{:20.10f}{:20.10f}\n{:20.10f}{:20.10f}{:20.10f}\n{:20.10f}{:20.10f}{:20.10f}\n".format(a, 0, 0, ba, bb, 0, ca, cb, cc)
 
 	return box_params
 
-def get_atoms():
+def change_tag(n, i, sizes):
+	with open(str(n) + ".xyz") as f:
+		lines = f.read().splitlines()
+		true_i = i % sizes
+		atom = lines[true_i + 2]
+	return atom.split()[0]
+
+def get_atoms(lines, sizes, molecules):
 	"""
 	It changes the original tag with the one in the xyz files.
 	It returns information related to it.
 	Returns ordered list with strings with wanted format
 	"""
-	#TODO
+	atoms = {}
+	n = 1
+	current_size = sizes[n] #1 is 137 
+	current_molecules = molecules[n] #everyone is 40
+
+	for i in range(0, len(lines)):
+		l_sep = lines[i].split()
+		atom_id = l_sep[1]
+		x = float(l_sep[5])
+		y = float(l_sep[6])
+		z = float(l_sep[7])
+
+		atom_tag = change_tag(n, i, sizes[n])
+		atoms[int(atom_id)] = {"x": x, "y": y, "z": z, "tag": atom_tag}
+
+		current_size = current_size - 1
+		if current_size < 0:
+			current_molecules = current_molecules - 1
+			current_size = sizes[n]
+
+		if current_molecules < 0:
+			n = n + 1
+			if not n in atoms:
+				break
+			current_size = sizes[n]  
+			current_molecules = molecules[n]
+
+	return atoms
+
+def write_config(box_params, atoms):
+	f = open("CONFIG", "w")
+	f.write(" PBD\n")
+	f.write("         0         3\n")
+	f.write(box_params)
+	for i in range(1, len(atoms)+1):
+		f.write("{:<10}{:>10}\n".format(atoms[i]["tag"], i))
+		f.write("{:20.10f}{:20.10f}{:20.10f}\n".format(atoms[i]["x"], atoms[i]["y"], atoms[i]["z"]))
+	f.close()
 
 def main():
 
@@ -113,17 +157,21 @@ def main():
 
 		#Number of molecules in each species, stored in dictionary. 
 		start = 5
-		unique_atoms = {}
 		for s in range(1, num_species + 1):
 			first_atom = input_lines[start].split()[2]
-			species_molecs[s], start = get_molecules_from_species(input_lines, start, first_atom, s)
+			species_molecs[s], start = get_molecules_from_species(input_lines, start, first_atom, species_size[s])
 
 		#Box parameters
 		crystal = first_atom = input_lines[1].split()
 		box_params = get_box_params(crystal)
 
 		#Atom tags
-		atoms = get_atoms(input_lines)
+		len_aux = len(input_lines) - 2
+		atoms = get_atoms(input_lines[5:len_aux], species_size, species_molecs)
+		
+		write_config(box_params, atoms)
+
+		print("Success: CONFIG file completed.") 
 
 if __name__ == '__main__':
 	main()
