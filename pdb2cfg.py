@@ -149,14 +149,16 @@ def write_config(box_params, atoms):
 
 def main():
 
+	input_name = ""
 	if len(sys.argv) == 1:
-		print("Error: please provide the name of the input file.")
-		sys.exit(1)
-
-	#Obtain input file
-	input_name =  sys.argv[1]
-	if not ".pdb" in input_name:
-		input_name = input_name + ".pdb"
+		onlyfiles = [f for f in listdir(".") if isfile(join(".", f))]
+		for f in onlyfiles:
+			if ".pdb" in f:
+				input_name = f
+	else:
+		input_name =  sys.argv[1]
+		if not ".pdb" in input_name:
+			input_name = input_name + ".pdb"
 
 	with open(input_name) as f:
 
@@ -193,7 +195,7 @@ def main():
 			
 		#Writes the CONFIG file
 		write_config(box_params, atoms)
-		print("Success: CONFIG file completed.") 
+		print("Success: CONFIG file completed, based on {}".format(input_name)) 
 
 if __name__ == '__main__':
 	main()
