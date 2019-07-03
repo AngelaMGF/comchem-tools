@@ -86,8 +86,7 @@ def change_tag(n, i, sizes):
 	"""
 	with open(str(n) + ".xyz") as f:
 		lines = f.read().splitlines()
-		true_i = i % sizes
-		atom = lines[true_i + 2]
+		atom = lines[i + 2]
 	return atom.split()[0]
 
 def get_atoms(lines, sizes, molecules):
@@ -99,6 +98,7 @@ def get_atoms(lines, sizes, molecules):
 	atoms = {}
 	n = 1
 	current_s = sizes[n] * molecules[n] 
+	current_a = 0
 
 	for i in range(0, len(lines)):
 
@@ -107,16 +107,20 @@ def get_atoms(lines, sizes, molecules):
 			if not n in atoms:
 				break
 			current_s = sizes[n] * molecules[n]
+			current_a = 0
+		if current_a >= sizes[n]:
+			current_a = 0
 
 		l_sep = lines[i].split()
-		atom_id = l_sep[1]
+		atom_id = int(l_sep[1])
 		x = float(l_sep[5])
 		y = float(l_sep[6])
 		z = float(l_sep[7])
 		
-		atom_tag = change_tag(n, i, sizes[n])
-		atoms[int(atom_id)] = {"x": x, "y": y, "z": z, "tag": atom_tag}
+		atom_tag = change_tag(n, current_a, sizes[n])
+		atoms[atom_id] = {"x": x, "y": y, "z": z, "tag": atom_tag}
 		current_s = current_s - 1
+		current_a = current_a + 1
 	return atoms
 
 def get_easy_atoms(lines):
@@ -173,14 +177,14 @@ def main():
 			#Get number of species and respective number of atoms
 			num_species = get_xyz()
 			species_size = get_atoms_in_species(num_species)
-			species_molecs = {}
-
+			
 			#Clean input
 			aux_lines = remove_lines(lines, "ANISOU")
 			input_lines = remove_lines(aux_lines, "CONECT")
 
-			#Number of molecules in each species, stored in dictionary. 
+			#Number of molecules of each species, stored in dictionary. 
 			start = 5
+			species_molecs = {}
 			for s in range(1, num_species + 1):
 				first_atom = input_lines[start].split()[2]
 				species_molecs[s], start = get_molecules_from_species(input_lines, start, first_atom, species_size[s])
