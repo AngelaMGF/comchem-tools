@@ -76,7 +76,7 @@ def get_box_params(crystal):
 	cb =( c / math.sin(gamma) ) * ( math.cos(alpha) - math.cos(beta) * math.cos(gamma) )
 	cc =( c / math.sin(gamma) ) * math.sqrt( 1 - math.cos(alpha)**2 - math.cos(beta)**2 - math.cos(gamma)**2 + 2 * math.cos(alpha)* math.cos(beta) * math.cos(gamma) )
 
-	box_params = "{:20.10f}{:20.10f}{:20.10f}\n{:20.10f}{:20.10f}{:20.10f}\n{:20.10f}{:20.10f}{:20.10f}\n".format(a, 0, 0, ba, bb, 0, ca, cb, cc)
+	box_params = "{:20.12f}{:20.12f}{:20.12f}\n{:20.12f}{:20.12f}{:20.12f}\n{:20.12f}{:20.12f}{:20.12f}\n".format(a, 0, 0, ba, bb, 0, ca, cb, cc)
 
 	return box_params
 
@@ -117,7 +117,20 @@ def get_atoms(lines, sizes, molecules):
 		atom_tag = change_tag(n, i, sizes[n])
 		atoms[int(atom_id)] = {"x": x, "y": y, "z": z, "tag": atom_tag}
 		current_s = current_s - 1
+	return atoms
 
+def get_easy_atoms(lines):
+	atoms = {}
+	for i in range(3, len(lines)):
+		l_sep = lines[i].split()
+
+		atom_id = int(l_sep[1])
+		atom_tag = l_sep[2]
+		x = float(l_sep[3])
+		y = float(l_sep[4])
+		z = float(l_sep[5])
+
+		atoms[atom_id] = {"x": x, "y": y, "z": z, "tag": atom_tag}
 	return atoms
 
 def write_config(box_params, atoms):
@@ -130,8 +143,8 @@ def write_config(box_params, atoms):
 	f.write("         0         3\n")
 	f.write(box_params)
 	for i in range(1, len(atoms)+1):
-		f.write("{:<10}{:>10}\n".format(atoms[i]["tag"], i))
-		f.write("{:20.10f}{:20.10f}{:20.10f}\n".format(atoms[i]["x"], atoms[i]["y"], atoms[i]["z"]))
+		f.write("{:<9}{:>9}\n".format(atoms[i]["tag"], i))
+		f.write("{:20.12f}{:20.12f}{:20.12f}\n".format(atoms[i]["x"], atoms[i]["y"], atoms[i]["z"]))
 	f.close()
 
 def main():
@@ -145,35 +158,41 @@ def main():
 	if not ".pdb" in input_name:
 		input_name = input_name + ".pdb"
 
-	#Get number of species and respective number of atoms
-	num_species = get_xyz()
-	species_size = get_atoms_in_species(num_species)
-	species_molecs = {}
-
 	with open(input_name) as f:
 
-		#Clean input
-		lines = f.read().splitlines()
-		aux_lines = remove_lines(lines, "ANISOU")
-		input_lines = remove_lines(aux_lines, "CONECT")
+		file = f.read()
+		lines = file.splitlines()
 
-		#Number of molecules in each species, stored in dictionary. 
-		start = 5
-		for s in range(1, num_species + 1):
-			first_atom = input_lines[start].split()[2]
-			species_molecs[s], start = get_molecules_from_species(input_lines, start, first_atom, species_size[s])
+		if not "CRYST" in file:
+			box_params = "{:20.12f}{:20.12f}{:20.12f}\n{:20.12f}{:20.12f}{:20.12f}\n{:20.12f}{:20.12f}{:20.12f}\n".format(0, 0, 0, 0, 0, 0, 0, 0, 0)
+			atoms = get_easy_atoms(lines)
 
-		#Box parameters
-		crystal = first_atom = input_lines[1].split()
-		box_params = get_box_params(crystal)
+		else:
+			#Get number of species and respective number of atoms
+			num_species = get_xyz()
+			species_size = get_atoms_in_species(num_species)
+			species_molecs = {}
 
-		#Atom tags
-		len_aux = len(input_lines) - 2
-		atoms = get_atoms(input_lines[5:len_aux], species_size, species_molecs)
-		
+			#Clean input
+			aux_lines = remove_lines(lines, "ANISOU")
+			input_lines = remove_lines(aux_lines, "CONECT")
+
+			#Number of molecules in each species, stored in dictionary. 
+			start = 5
+			for s in range(1, num_species + 1):
+				first_atom = input_lines[start].split()[2]
+				species_molecs[s], start = get_molecules_from_species(input_lines, start, first_atom, species_size[s])
+
+			#Box parameters
+			crystal = input_lines[1].split()
+			box_params = get_box_params(crystal)
+
+			#Atom tags
+			len_aux = len(input_lines) - 2
+			atoms = get_atoms(input_lines[5:len_aux], species_size, species_molecs)
+			
 		#Writes the CONFIG file
 		write_config(box_params, atoms)
-
 		print("Success: CONFIG file completed.") 
 
 if __name__ == '__main__':
